@@ -19,8 +19,8 @@ contract SeminarNFT is Initializable, ERC721URIStorageUpgradeable, AccessControl
         address speaker;
     }
 
-    mapping(uint256 => SeminarData) public seminars;
-    mapping(uint256 => address) public seminarSpeakers;
+    mapping(uint256 => SeminarData) public seminars; 
+    mapping(uint256 => address) public seminarSpeakers; // seminar do speaker nói
 
     event SeminarMinted(
         uint256 indexed tokenId,
@@ -37,7 +37,7 @@ contract SeminarNFT is Initializable, ERC721URIStorageUpgradeable, AccessControl
         __AccessControl_init();
         _grantRole(ADMIN_ROLE, admin);
     }
-
+    // vì hợp đồng này kế thừa từ 2 hợp đồng ERC721URIStorageUpgradeable và AccessControlUpgradeable mà cả 2 lớp này đều có hàm này nên cần phải ghi đè hàm supportsInterface
     function supportsInterface(bytes4 interfaceId)
         public
         view
@@ -95,7 +95,7 @@ contract SeminarNFT is Initializable, ERC721URIStorageUpgradeable, AccessControl
             seminar.speaker
         );
     }
-
+    //nếu thay đổi trên IPFS thì cần phải cập nhật lại metadataURI
     function updateMetadata(uint256 tokenId, string memory metadataURI)
         public
         onlyRole(ADMIN_ROLE)

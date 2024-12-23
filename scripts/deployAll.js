@@ -1,10 +1,10 @@
 const { ethers, upgrades } = require("hardhat");
 
 async function main() {
-    const adminAddress = "0xD7d413D879B3d9B611009d8B6cf78355422A18B4"; // Thay bằng địa chỉ admin thực tế
+    const adminAddress = process.env.ADMIN_ADDRESS;
     console.log("Deploying contracts with admin address:", adminAddress);
 
-    // Kiểm tra địa chỉ hợp lệ
+    // Kiểm tra địa chỉ hợp lệ vì không dùng đc hàm isAddress() nên a dùng bừa
     if (!/^0x[a-fA-F0-9]{40}$/.test(adminAddress)) {
         throw new Error("Invalid admin address format");
     }
