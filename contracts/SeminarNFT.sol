@@ -5,7 +5,11 @@ import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URISto
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-contract SeminarNFT is Initializable, ERC721URIStorageUpgradeable, AccessControlUpgradeable {
+contract SeminarNFT is
+    Initializable,
+    ERC721URIStorageUpgradeable,
+    AccessControlUpgradeable
+{
     uint256 public nextTokenId;
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
@@ -19,7 +23,7 @@ contract SeminarNFT is Initializable, ERC721URIStorageUpgradeable, AccessControl
         address speaker;
     }
 
-    mapping(uint256 => SeminarData) public seminars; 
+    mapping(uint256 => SeminarData) public seminars;
     mapping(uint256 => address) public seminarSpeakers; // seminar do speaker nói
 
     event SeminarMinted(
@@ -38,7 +42,9 @@ contract SeminarNFT is Initializable, ERC721URIStorageUpgradeable, AccessControl
         _grantRole(ADMIN_ROLE, admin);
     }
     // vì hợp đồng này kế thừa từ 2 hợp đồng ERC721URIStorageUpgradeable và AccessControlUpgradeable mà cả 2 lớp này đều có hàm này nên cần phải ghi đè hàm supportsInterface
-    function supportsInterface(bytes4 interfaceId)
+    function supportsInterface(
+        bytes4 interfaceId
+    )
         public
         view
         override(ERC721URIStorageUpgradeable, AccessControlUpgradeable)
@@ -57,10 +63,14 @@ contract SeminarNFT is Initializable, ERC721URIStorageUpgradeable, AccessControl
     ) public onlyRole(ADMIN_ROLE) {
         require(speaker != address(0), "Speaker address cannot be zero");
 
-        uint256 tokenId = nextTokenId;
+        //de tokenId xuat phat tu 1
         nextTokenId++;
+        uint256 tokenId = nextTokenId;
 
-        require(seminars[tokenId].seminarId == 0, "Seminar with this ID already exists");
+        require(
+            seminars[tokenId].seminarId == 0,
+            "Seminar with this ID already exists"
+        );
 
         seminars[tokenId] = SeminarData({
             seminarId: tokenId,
@@ -79,10 +89,19 @@ contract SeminarNFT is Initializable, ERC721URIStorageUpgradeable, AccessControl
         emit SeminarMinted(tokenId, msg.sender, name, metadataURI, speaker);
     }
 
-    function getSeminar(uint256 tokenId)
+    function getSeminar(
+        uint256 tokenId
+    )
         public
         view
-        returns (string memory, string memory, string memory, string memory, string memory, address)
+        returns (
+            string memory,
+            string memory,
+            string memory,
+            string memory,
+            string memory,
+            address
+        )
     {
         require(seminars[tokenId].seminarId != 0, "Seminar does not exist");
         SeminarData memory seminar = seminars[tokenId];
@@ -96,12 +115,13 @@ contract SeminarNFT is Initializable, ERC721URIStorageUpgradeable, AccessControl
         );
     }
     //nếu thay đổi trên IPFS thì cần phải cập nhật lại metadataURI
-    function updateMetadata(uint256 tokenId, string memory metadataURI)
-        public
-        onlyRole(ADMIN_ROLE)
-    {
+    function updateMetadata(
+        uint256 tokenId,
+        string memory metadataURI
+    ) public onlyRole(ADMIN_ROLE) {
         require(seminars[tokenId].seminarId != 0, "Seminar does not exist");
-        _setTokenURI(tokenId, metadataURI);
+        _setTokenURI(tokenId, metadataURI); //setToken khong su dung duoc
+        seminars[tokenId].metadataURI = metadataURI;
         emit MetadataUpdated(tokenId, metadataURI);
     }
 }
