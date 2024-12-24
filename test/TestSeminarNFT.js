@@ -55,7 +55,8 @@ describe("SeminarNFT", function () {
         ).to.emit(seminarNFT, "SeminarMinted")
         .withArgs(1, owner.address, _name, _metadataURI, _speaker);
 
-        const data = await seminarNFT.connect(owner).getSeminar(1);
+        let data = await seminarNFT.connect(owner).getSeminar(0);
+        data = await seminarNFT.connect(owner).getSeminar(1);
 
         expect(data[0]).to.equal(_name);
         expect(data[1]).to.equal(_description);
