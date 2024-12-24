@@ -20,10 +20,7 @@ describe("SeminarNFT", function () {
         expect(await seminarNFT.hasRole(ADMIN_ROLE, speaker.address)).to.equal(false);
     });
 
-    it("Test mintSeminar", async function () {
-        const ADMIN_ROLE = await seminarNFT.ADMIN_ROLE();
-        expect(await seminarNFT.hasRole(ADMIN_ROLE, owner.address)).to.equal(true);
-
+    async function mintNewSeminar() {
         const _name = "FzH";
         const _description = "Fauz Handsome";
         const _image = "Fauz's image";
@@ -41,29 +38,38 @@ describe("SeminarNFT", function () {
             _speaker
             )
         ).to.emit(seminarNFT, "SeminarMinted")
-        .withArgs(0, owner.address, _name, _metadataURI, _speaker);
-
-        await expect(
-            seminarNFT.connect(owner).mintSeminar(
-            _name, 
-            _description, 
-            _image, 
-            _nameSpeaker, 
-            _metadataURI, 
-            _speaker
-            )
-        ).to.emit(seminarNFT, "SeminarMinted")
         .withArgs(1, owner.address, _name, _metadataURI, _speaker);
+    }
 
-        let data = await seminarNFT.connect(owner).getSeminar(0);
-        data = await seminarNFT.connect(owner).getSeminar(1);
+    it("Test mint", async function () {
+        const ADMIN_ROLE = await seminarNFT.ADMIN_ROLE();
+        expect(await seminarNFT.hasRole(ADMIN_ROLE, owner.address)).to.equal(true);
+        mintNewSeminar();
+    });
 
-        expect(data[0]).to.equal(_name);
-        expect(data[1]).to.equal(_description);
-        expect(data[2]).to.equal(_image);
-        expect(data[3]).to.equal(_nameSpeaker);
-        expect(data[4]).to.equal(_metadataURI);
-        expect(data[5]).to.equal(_speaker);
+    it("Test get", async function () {
+        await mintNewSeminar();
+
+        const data = await seminarNFT.getSeminar(1);
+        
+        expect(data[0]).to.equal("FzH");
+        expect(data[1]).to.equal("Fauz Handsome");
+        expect(data[2]).to.equal("Fauz's image");
+        expect(data[3]).to.equal("Fauz");
+        expect(data[4]).to.equal("hehehehe");
+        expect(data[5]).to.equal(speaker.address);
+    });
+
+    it("Test update", async function () {
+        await mintNewSeminar();
+        await expect(
+            seminarNFT.connect(owner).updateMetadata(1, "new data")
+        ).to.emit(seminarNFT, "MetadataUpdated")
+        .withArgs(1, "new data");
+
+        const data = await seminarNFT.getSeminar(1);
+
+        expect(data[4]).to.equal("new data");
     });
 
     it("Non-admin không thể mint seminarNFT", async function () {
@@ -80,8 +86,9 @@ describe("SeminarNFT", function () {
     });
 
     it("Non-admin không thể update data", async function () {
+        await mintNewSeminar();
         await expect(
-            seminarNFT.connect(other).updateMetadata(0, "new data")
+            seminarNFT.connect(other).updateMetadata(1, "new data")
         ).to.be.reverted;
     });
 
