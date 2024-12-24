@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract SeminarNFT is
     Initializable,
+    OwnableUpgradeable,
     ERC721URIStorageUpgradeable,
     AccessControlUpgradeable
 {
@@ -20,27 +22,41 @@ contract SeminarNFT is
         string image;
         string nameSpeaker;
         string metadataURI;
-        address speaker;
+        address[] speakers;
     }
 
     mapping(uint256 => SeminarData) public seminars;
-    mapping(uint256 => address) public seminarSpeakers; // seminar do speaker nói
+    mapping(uint256 => address[]) public seminarSpeakers; // seminar do speaker nói
 
     event SeminarMinted(
         uint256 indexed tokenId,
         address indexed owner,
         string name,
         string metadataURI,
-        address speaker
+        address[] speakers
     );
 
     event MetadataUpdated(uint256 indexed tokenId, string metadataURI);
+
+    event RoleAdded(address indexed account, bytes32 role);
+    event RoleRemoved(address indexed account, bytes32 role);
 
     function initialize(address admin) public initializer {
         __ERC721_init("SeminarNFT", "SNFT");
         __AccessControl_init();
         _grantRole(ADMIN_ROLE, admin);
     }
+
+    function addAdmin(address admin) public onlyOwner {
+        grantRole(ADMIN_ROLE, admin);
+        emit RoleAdded(admin, ADMIN_ROLE);
+    }
+
+    function removeAdmin(address admin) public onlyOwner {
+        revokeRole(ADMIN_ROLE, admin);
+        emit RoleRemoved(admin, ADMIN_ROLE);
+    }
+
     // vì hợp đồng này kế thừa từ 2 hợp đồng ERC721URIStorageUpgradeable và AccessControlUpgradeable mà cả 2 lớp này đều có hàm này nên cần phải ghi đè hàm supportsInterface
     function supportsInterface(
         bytes4 interfaceId
@@ -54,14 +70,14 @@ contract SeminarNFT is
     }
 
     function mintSeminar(
-        string memory name,
-        string memory description,
-        string memory image,
-        string memory nameSpeaker,
-        string memory metadataURI,
-        address speaker
+        string memory _name,
+        string memory _description,
+        string memory _image,
+        string memory _nameSpeaker,
+        string memory _metadataURI,
+        address[] memory _speakers
     ) public onlyRole(ADMIN_ROLE) {
-        require(speaker != address(0), "Speaker address cannot be zero");
+        require(_speakers.length > 0, "Length of speaker must be > 0");
 
         //de tokenId xuat phat tu 1
         nextTokenId++;
@@ -74,19 +90,19 @@ contract SeminarNFT is
 
         seminars[tokenId] = SeminarData({
             seminarId: tokenId,
-            name: name,
-            description: description,
-            image: image,
-            nameSpeaker: nameSpeaker,
-            metadataURI: metadataURI,
-            speaker: speaker
+            name: _name,
+            description: _description,
+            image: _image,
+            nameSpeaker: _nameSpeaker,
+            metadataURI: _metadataURI,
+            speakers: _speakers
         });
-        seminarSpeakers[tokenId] = speaker;
+        seminarSpeakers[tokenId] = _speakers;
 
         _mint(msg.sender, tokenId);
-        _setTokenURI(tokenId, metadataURI);
+        _setTokenURI(tokenId, _metadataURI);
 
-        emit SeminarMinted(tokenId, msg.sender, name, metadataURI, speaker);
+        emit SeminarMinted(tokenId, msg.sender, _name, _metadataURI, _speakers);
     }
 
     function getSeminar(
@@ -100,7 +116,7 @@ contract SeminarNFT is
             string memory,
             string memory,
             string memory,
-            address
+            address[] memory
         )
     {
         require(seminars[tokenId].seminarId != 0, "Seminar does not exist");
@@ -111,7 +127,7 @@ contract SeminarNFT is
             seminar.image,
             seminar.nameSpeaker,
             seminar.metadataURI,
-            seminar.speaker
+            seminar.speakers
         );
     }
     //nếu thay đổi trên IPFS thì cần phải cập nhật lại metadataURI
