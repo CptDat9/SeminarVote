@@ -23,27 +23,27 @@ contract WhitelistUpgradeableV2 is Initializable, OwnableUpgradeable, AccessCont
         _setRoleAdmin(VOTER_ROLE, ADMIN_ROLE); // ADMIN_ROLE quản lý VOTER_ROLE
         _setRoleAdmin(ADMIN_ROLE, ADMIN_ROLE); // ADMIN_ROLE tự quản lý ADMIN_ROLE
     }
-
+    /// @dev add admin
     function addAdmin(address admin) public onlyOwner { // Chỉ sở hữu hợp đồng mới có thể thêm admin
         grantRole(ADMIN_ROLE, admin);
         emit RoleAdded(admin, ADMIN_ROLE);
     }
-
+    /// @dev xoa admin
     function removeAdmin(address admin) public onlyOwner {
         revokeRole(ADMIN_ROLE, admin);
         emit RoleRemoved(admin, ADMIN_ROLE);
     }
-
+    /// @dev add voter(can co admin_role)
     function addVoter(address voter) public onlyRole(ADMIN_ROLE) {
         grantRole(VOTER_ROLE, voter);
         emit RoleAdded(voter, VOTER_ROLE);
     }
-
+    /// @dev Remove voter (can co admin_role)
     function removeVoter(address voter) public onlyRole(ADMIN_ROLE) {
         revokeRole(VOTER_ROLE, voter);
         emit RoleRemoved(voter, VOTER_ROLE);
     }
-
+    /// @dev Check voter.
     function isVoter(address voter) public view returns (bool) {
         return hasRole(VOTER_ROLE, voter);
     }
