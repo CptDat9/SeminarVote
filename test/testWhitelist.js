@@ -15,7 +15,17 @@ describe("WhitelistUpgradeableV2", function () {
         const ADMIN_ROLE = await whitelist.ADMIN_ROLE();
         expect(await whitelist.hasRole(ADMIN_ROLE, owner.address)).to.equal(true);
     });
-
+    it ("Kiem tra 1 tai khoan sau khi dc add thi dc la voter", async function(){
+        const VOTER_ROLE = await whitelist.VOTER_ROLE();
+        const ADMIN_ROLE = await whitelist.ADMIN_ROLE();
+        await whitelist.connect(owner).addAdmin(admin.address);
+        expect(await whitelist.hasRole(ADMIN_ROLE, admin.address)).to.equal(true);
+        await whitelist.connect(admin).addVoter(voter.address);
+        expect(await whitelist.hasRole(VOTER_ROLE, voter.address)).to.equal(true);
+        expect(await whitelist.isVoter(voter.address)).to.equal(true);
+        await whitelist.connect(admin).removeVoter(voter.address);
+        expect(await whitelist.hasRole(VOTER_ROLE, voter.address)).to.equal(false);   
+    });
     it("Admin co the add voter, voter có role hợp lệ.", async function () {
         const ADMIN_ROLE = await whitelist.ADMIN_ROLE();
         const VOTER_ROLE = await whitelist.VOTER_ROLE();
@@ -37,7 +47,7 @@ describe("WhitelistUpgradeableV2", function () {
         .withArgs(nonAdmin.address, ADMIN_ROLE);
     });
 
-    it("Owner co the remove admin", async function () { 
+    it("Owner co the add/remove admin", async function () { 
         const ADMIN_ROLE = await whitelist.ADMIN_ROLE();
 
         await whitelist.connect(owner).addAdmin(admin.address);
@@ -47,7 +57,7 @@ describe("WhitelistUpgradeableV2", function () {
         expect(await whitelist.hasRole(ADMIN_ROLE, admin.address)).to.equal(false);
     });
 
-    it("Admin co the remove voters", async function () {
+    it("Admin co the add/remove voters", async function () {
         const VOTER_ROLE = await whitelist.VOTER_ROLE();
 
         await whitelist.connect(owner).addAdmin(admin.address);
@@ -58,7 +68,7 @@ describe("WhitelistUpgradeableV2", function () {
         expect(await whitelist.hasRole(VOTER_ROLE, voter.address)).to.equal(false);
     });
 
-    it("Phat ra su kien (emit) RoleAdded and RoleRemoved ", async function () {
+    it("Phat ra su kien (emit) RoleAdded and RoleRemoved (admin) ", async function () {
         const ADMIN_ROLE = await whitelist.ADMIN_ROLE();
 
         await expect(whitelist.connect(owner).addAdmin(admin.address))
