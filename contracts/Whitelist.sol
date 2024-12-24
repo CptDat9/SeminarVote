@@ -9,8 +9,8 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 // Những voter chỉ được add và remove bởi admin
 
 contract WhitelistUpgradeableV2 is Initializable, OwnableUpgradeable, AccessControlUpgradeable {
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE"); // Mã hóa role admin
-    bytes32 public constant VOTER_ROLE = keccak256("VOTER_ROLE"); // Mã hóa role voter
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE"); 
+    bytes32 public constant VOTER_ROLE = keccak256("VOTER_ROLE"); 
 
     event RoleAdded(address indexed account, bytes32 role);
     event RoleRemoved(address indexed account, bytes32 role);
@@ -19,12 +19,12 @@ contract WhitelistUpgradeableV2 is Initializable, OwnableUpgradeable, AccessCont
         __Ownable_init(initialOwner);
         __AccessControl_init();
 
-        _grantRole(ADMIN_ROLE, initialOwner); // Người đầu tiên gọi hợp đồng sẽ được cấp quyền admin
-        _setRoleAdmin(VOTER_ROLE, ADMIN_ROLE); // ADMIN_ROLE quản lý VOTER_ROLE
-        _setRoleAdmin(ADMIN_ROLE, ADMIN_ROLE); // ADMIN_ROLE tự quản lý ADMIN_ROLE
+        _grantRole(ADMIN_ROLE, initialOwner); 
+        _setRoleAdmin(VOTER_ROLE, ADMIN_ROLE);
+        _setRoleAdmin(ADMIN_ROLE, ADMIN_ROLE); 
     }
     /// @dev add admin
-    function addAdmin(address admin) public onlyOwner { // Chỉ sở hữu hợp đồng mới có thể thêm admin
+    function addAdmin(address admin) public onlyOwner {
         grantRole(ADMIN_ROLE, admin);
         emit RoleAdded(admin, ADMIN_ROLE);
     }
