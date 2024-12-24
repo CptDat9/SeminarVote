@@ -21,6 +21,7 @@ contract Voting is Initializable, AccessControlUpgradeable {
     mapping(uint256 => VotingRound) public votingRounds;
     mapping(uint256 => mapping(address => uint256)) public userVotes;
     mapping(uint256 => mapping(uint256 => uint256)) public totalVotes;
+    mapping(uint256 => mapping(address => bool)) public checkVoted;
 
     uint256 public nextRoundId; //id của round 
 
@@ -30,6 +31,8 @@ contract Voting is Initializable, AccessControlUpgradeable {
     event VotingRoundEnded(uint256 indexed roundId);
 
     function initialize(address admin, address seminarNFTAddress) public initializer {
+        require(admin != address(0), "Invalid admin address");
+        require(seminarNFTAddress != address(0), "Invalid seminar NFT address");
         __AccessControl_init();
         _grantRole(ADMIN_ROLE, admin);
         seminarNFT = SeminarNFT(seminarNFTAddress);
@@ -82,9 +85,11 @@ contract Voting is Initializable, AccessControlUpgradeable {
     {
         VotingRound storage round = votingRounds[roundId];
         require(userVotes[roundId][msg.sender] < round.maxVotesPerVoter, "You have reached the maximum number of votes"); // người vote không được vượt quá số lượng vote tối đa
+        require(checkVoted[seminarId][msg.sender] == false, "you already voted ~~"); // kiểm tra người vote đã vote chưa
 
         userVotes[roundId][msg.sender]++;
         totalVotes[roundId][seminarId]++;
+        checkVoted[seminarId][msg.sender] = true; // đã vote cho seminar này
 
         address speakerAddress = seminarNFT.ownerOf(seminarId); // lấy địa chỉ của người nói
         round.speakerVotes[speakerAddress]++; // tăng số lượng vote của người nói trong 1 round khi vote +1
