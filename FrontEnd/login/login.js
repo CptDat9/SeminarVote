@@ -21,8 +21,8 @@ async function connectMetaMask() {
 
 async function checkUserRole(account) {
     const web3 = new Web3(window.ethereum);
-    const contractAddress = '0x0165878A594ca255338adfa4d48449f69242Eb8F'; // Replace with your contract address
-    const abi = [
+    const contractAddress = '0x0165878A594ca255338adfa4d48449f69242Eb8F'; // thay địa chỉ whitelist contract vào đây
+    const abi = [ // lấy abi trong artifacts vào đây
         {
             "inputs": [],
             "name": "AccessControlBadConfirmation",
@@ -512,17 +512,14 @@ async function checkUserRole(account) {
             "stateMutability": "nonpayable",
             "type": "function"
           }
-    ]; // Replace with your contract ABI
+    ]; 
     const contract = new web3.eth.Contract(abi, contractAddress);
 
-    // Example to check role
     const isAdmin = await contract.methods.isAdmin(account).call();
     const isVoter = await contract.methods.isVoter(account).call();
     
-    if (isAdmin) {
+    if (isAdmin || isVoter) {
         window.location.href = 'admin.html';
-    } else if (isVoter) {
-        window.location.href = 'voter.html';
     } else {
         alert("You do not have permissions to access.");
     }
