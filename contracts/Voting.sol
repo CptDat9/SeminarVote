@@ -272,8 +272,35 @@ contract Voting is Initializable, AccessControlUpgradeable {
         }
         return (maxSeminarId, maxVotes);
     }
-<<<<<<< HEAD
+/// @dev Lấy danh sách speaker xếp từ vote cao xuống thấp
+    function getResultWinner (uint256 roundId) public 
+    view 
+    onlyRole(ADMIN_ROLE) 
+    returns (address[] memory sortedSpeakers, uint256[] memory sortedVotes)
+    {
+        VotingRound storage round = votingRounds[roundId];
+        address[] memory speakers = round.speakersInRound;
+        require(speakers.length > 0, "No votes and speaker yet.");
+        uint256 speakerCount = speakers.length;
+        sortedSpeakers = new address[](speakerCount);
+        sortedVotes = new uint256[](speakerCount);
+        for (uint256 i = 0; i < speakerCount; i++) {
+            sortedSpeakers[i] = speakers[i];
+            sortedVotes[i] = round.speakerVotes[speakers[i]];
+        }
+        for (uint256 i = 0; i < speakerCount; i++){
+            for(uint256 j = i+1; j<speakerCount; j++){
+                if (sortedVotes[i] < sortedVotes[j]) {
+                uint256 temp = sortedVotes[i];
+                sortedVotes[i] = sortedVotes[j];
+                sortedVotes[j] = temp;
+                address tempSpeaker = sortedSpeakers[i];
+                sortedSpeakers[i] = sortedSpeakers[j];
+                sortedSpeakers[j] = tempSpeaker;
+            }
+        }
+        }
+        return (sortedSpeakers, sortedVotes);
+
+    }
 }
-=======
-}
->>>>>>> 61b85c33cb5f6cfbca46896554adff10615dccac
