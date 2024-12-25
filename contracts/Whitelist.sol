@@ -16,7 +16,7 @@ contract WhitelistUpgradeableV2 is Initializable, OwnableUpgradeable, AccessCont
     event RoleRemoved(address indexed account, bytes32 role);
 
     function initialize(address initialOwner) public initializer {
-        __Ownable_init(initialOwner);
+        __Ownable_init(initialOwner); //sai khi k truyền tham số
         __AccessControl_init();
 
         _grantRole(ADMIN_ROLE, initialOwner); // Người đầu tiên gọi hợp đồng sẽ được cấp quyền admin

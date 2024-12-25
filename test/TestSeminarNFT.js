@@ -26,7 +26,7 @@ describe("SeminarNFT", function () {
         const _image = "Fauz's image";
         const _nameSpeaker = "Fauz";
         const _metadataURI = "hehehehe";
-        const _speaker = speaker.address;
+        const _speaker = [speaker.address, other.address];
 
         await expect(
             seminarNFT.connect(owner).mintSeminar(
@@ -50,14 +50,20 @@ describe("SeminarNFT", function () {
     it("Test get", async function () {
         await mintNewSeminar();
 
+        // check test get seminar
         const data = await seminarNFT.getSeminar(1);
-        
         expect(data[0]).to.equal("FzH");
         expect(data[1]).to.equal("Fauz Handsome");
         expect(data[2]).to.equal("Fauz's image");
         expect(data[3]).to.equal("Fauz");
         expect(data[4]).to.equal("hehehehe");
-        expect(data[5]).to.equal(speaker.address);
+        expect(data[5][0]).to.equal(speaker.address);
+        expect(data[5][1]).to.equal(other.address);
+        
+        // check test get speakers
+        const speakers = await seminarNFT.getSeminarSpeakers(1);
+        expect(data[5][0]).to.equal(speakers[0]);
+        expect(data[5][1]).to.equal(speakers[1]);
     });
 
     it("Test update", async function () {
@@ -80,7 +86,7 @@ describe("SeminarNFT", function () {
                 "image",
                 "other",
                 "metadata",
-                other.address
+                [other.address]
             )
         ).to.be.reverted;
     });
