@@ -13,22 +13,25 @@ contract Voting is Initializable, AccessControlUpgradeable {
     struct VotingRound {
         uint256 startTime;
         uint256 endTime;
-        uint256 maxVotesPerVoter; // max vote
+        uint256 maxVotesPerVoterForSeminar; // max vote
+        uint256 maxVotesPerVoterForSpeaker;
         bool isActive;
         uint256[] seminarIds;
         address[] speakersInRound;
         mapping(address => uint256) speakerVotes;
-        address[] voters;
+        address[] votersForSeminar;
+        address[] votersForSpeaker;
         mapping(uint256 => bool) seminarExist; //seminarExist[seminarId] = true/false
         mapping(address => bool) speakerExist; //speakerExist[speakerAddress] = true/false
     }
-    mapping(uint256 => mapping(address => bool)) public checkVoted; // checkVoted[seminarId][voter] = true/false
-
+    mapping(uint256 => mapping(address => bool)) public checkVotedSeminar; // checkVoted[seminarId][voter] = true/false
+    mapping(address => mapping(address => bool)) public checkVotedSpeaker; // checkVoted[speakerAddress][voter] = true/false
     SeminarNFT public seminarNFT;
     WhitelistUpgradeableV2 public whitelist;
 
     mapping(uint256 => VotingRound) public votingRounds; // roundId => VotingRound
-    mapping(uint256 => mapping(address => uint256)) public userVotes; // userVotes[roundId][voter] = number of votes
+    mapping(uint256 => mapping(address => uint256)) public userVotesForSeminar; // userVotes[roundId][voter] = number of votes
+    mapping(uint256 => mapping(address => uint256)) public userVotesForSpeaker; // userVotes[roundId][voter] = number of votes
     mapping(uint256 => mapping(uint256 => uint256)) public totalVotes; // totalVotes[roundId][seminarId] = number of votes
 
     uint256 public nextRoundId;
@@ -37,7 +40,8 @@ contract Voting is Initializable, AccessControlUpgradeable {
         uint256 indexed roundId,
         uint256 startTime,
         uint256 endTime,
-        uint256 maxVotesPerVoter
+        uint256 maxVotesPerVoterForSeminar,
+        uint256 maxVotesPerVoterForSpeaker
     );
     event SeminarAddedToRound(
         uint256 indexed roundId,
@@ -100,11 +104,12 @@ contract Voting is Initializable, AccessControlUpgradeable {
     function createVotingRound(
         uint256 startTime,
         uint256 endTime,
-        uint256 maxVotesPerVoter
+        uint256 maxVotesPerVoterForSeminar,
+        uint256 maxVotesPerVoterForSpeaker
     ) public onlyRole(ADMIN_ROLE) {
         require(endTime > startTime, "End time must be after start time");
         require(
-            maxVotesPerVoter > 0,
+            maxVotesPerVoterForSeminar > 0 && maxVotesPerVoterForSpeaker > 0,
             "Max votes per voter must be greater than 0"
         );
 
@@ -112,14 +117,16 @@ contract Voting is Initializable, AccessControlUpgradeable {
         VotingRound storage newRound = votingRounds[nextRoundId];
         newRound.startTime = startTime;
         newRound.endTime = endTime;
-        newRound.maxVotesPerVoter = maxVotesPerVoter;
+        newRound.maxVotesPerVoterForSeminar = maxVotesPerVoterForSeminar;
+        newRound.maxVotesPerVoterForSpeaker = maxVotesPerVoterForSpeaker;
         newRound.isActive = true;
 
         emit VotingRoundCreated(
             nextRoundId,
             startTime,
             endTime,
-            maxVotesPerVoter
+            maxVotesPerVoterForSeminar,
+            maxVotesPerVoterForSpeaker
         );
     }
 
@@ -151,7 +158,7 @@ contract Voting is Initializable, AccessControlUpgradeable {
     }
 
     // Hàm bỏ phiếu
-    function vote(
+    function voteForSeminar(
         uint256 roundId,
         uint256 seminarId
     )
@@ -162,26 +169,45 @@ contract Voting is Initializable, AccessControlUpgradeable {
     {
         VotingRound storage round = votingRounds[roundId];
         require(
-            userVotes[roundId][msg.sender] < round.maxVotesPerVoter,
+            userVotesForSeminar[roundId][msg.sender] < round.maxVotesPerVoterForSeminar,
             "Max votes exceeded"
         );
         require(
-            !checkVoted[seminarId][msg.sender],
+            !checkVotedSeminar[seminarId][msg.sender],
             "You have already voted for this seminar"
         );
 
-        userVotes[roundId][msg.sender]++;
+        userVotesForSeminar[roundId][msg.sender]++;
         totalVotes[roundId][seminarId]++;
-        checkVoted[seminarId][msg.sender] = true;
-        round.voters.push(msg.sender);
-
-        address[] memory speakers = seminarNFT.getSeminarSpeakers(seminarId);
-        uint256 limit = speakers.length;
-        for (uint256 i = 0; i < limit; i++) {
-            address x = speakers[i];
-            round.speakerVotes[x]++;
-        }
+        checkVotedSeminar[seminarId][msg.sender] = true;
+        round.votersForSeminar.push(msg.sender);
         emit Voted(roundId, seminarId, msg.sender);
+    }
+
+    // @dev Bỏ phiếu cho speaker
+    function voteForSpeaker (
+        uint256 roundId,
+        address speaker
+    )
+        public
+        onlyActiveRound(roundId)
+        onlyRole(VOTER_ROLE)
+    {
+        VotingRound storage round = votingRounds[roundId];
+        require(
+            userVotesForSpeaker[roundId][msg.sender] < round.maxVotesPerVoterForSpeaker,
+            "Max votes exceeded"
+        );
+        require(
+            !checkVotedSpeaker[speaker][msg.sender],
+            "You have already voted for this speaker"
+        );
+
+        userVotesForSpeaker[roundId][msg.sender]++;
+        round.speakerVotes[speaker]++;
+        checkVotedSpeaker[speaker][msg.sender] = true;
+        round.votersForSpeaker.push(msg.sender);
+        emit Voted(roundId, 0, msg.sender);
     }
 
     // Hàm kết thúc vòng bỏ phiếu
@@ -201,9 +227,9 @@ contract Voting is Initializable, AccessControlUpgradeable {
         uint256 roundId
     ) public view onlyRole(ADMIN_ROLE) returns (address[] memory) {
         VotingRound storage round = votingRounds[roundId];
-        return round.voters;
+        return round.votersForSeminar;
     }
-
+    
     // Hàm lấy số phiếu của một speaker cụ thể
     function getSpeakerVotes(
         uint256 roundId,
