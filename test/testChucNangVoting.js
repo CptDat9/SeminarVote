@@ -1,6 +1,3 @@
-/*
-CHƯA TEST LOGIC VOTE 
-*/
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
@@ -146,4 +143,15 @@ describe("Voting Contract", function () {
     await expect(voting.connect(voter1).vote(1, 3))
       .to.be.revertedWith("Max votes exceeded");
   });
+  it("Có thể thay đổi thời gian kết thúc của một voting round", async function () {
+    const newEndTime = Math.floor(Date.now() / 1000) + 7200; 
+    const oldEndTime = Math.floor(Date.now() / 1000) + 3600;
+    await expect(voting.connect(admin).changeVotingEndtime(1, newEndTime))
+      .to.emit(voting, "VotingEndTimeChanged")
+      .withArgs(1, oldEndTime, newEndTime);
+
+    const round = await voting.votingRounds(1);
+    expect(round.endTime).to.equal(newEndTime);
+  });
+
 });
