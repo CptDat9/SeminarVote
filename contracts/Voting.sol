@@ -51,7 +51,7 @@ contract Voting is Initializable, AccessControlUpgradeable {
     event VotingRoundEnded(uint256 indexed roundId);
     event RoleAdded(address indexed account, bytes32 role);
     event RoleRemoved(address indexed account, bytes32 role);
-
+    event VotingEndTimeChanged(uint256 indexed roundId, uint256 oldEndTime, uint256 newEndTime);
     function initialize(
         address admin,
         address seminarNFTAddress,
@@ -305,15 +305,16 @@ contract Voting is Initializable, AccessControlUpgradeable {
 
     }
     /// @dev change deadline
-    function changeVotingDeadline(uint256 roundId, uint256 newEndTime) 
+    function changeVotingEndtime(uint256 roundId, uint256 newEndTime) 
         public 
         onlyRole(ADMIN_ROLE) 
     {
         VotingRound storage round = votingRounds[roundId];
         require(round.isActive, "Voting round is not active");
-        require(newEndTime > block.timestamp, "New end time must > block.timestamp");
-        require(newEndTime > round.startTime, "New end time must > start time");
-
+        require(newEndTime > block.timestamp, "New end time must be in the future");
+        require(newEndTime > round.startTime, "New end time must be after start time");
+        uint256 oldEndTime = round.endTime;
         round.endTime = newEndTime;
+        emit VotingEndTimeChanged(roundId, oldEndTime, newEndTime);
     }
 }
