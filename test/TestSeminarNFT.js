@@ -50,8 +50,8 @@ describe("SeminarNFT", function () {
     it("Test get", async function () {
         await mintNewSeminar();
 
+        // check test get seminar
         const data = await seminarNFT.getSeminar(1);
-        
         expect(data[0]).to.equal("FzH");
         expect(data[1]).to.equal("Fauz Handsome");
         expect(data[2]).to.equal("Fauz's image");
@@ -59,6 +59,11 @@ describe("SeminarNFT", function () {
         expect(data[4]).to.equal("hehehehe");
         expect(data[5][0]).to.equal(speaker.address);
         expect(data[5][1]).to.equal(other.address);
+        
+        // check test get speakers
+        const speakers = await seminarNFT.getSeminarSpeakers(1);
+        expect(data[5][0]).to.equal(speakers[0]);
+        expect(data[5][1]).to.equal(speakers[1]);
     });
 
     it("Test update", async function () {
