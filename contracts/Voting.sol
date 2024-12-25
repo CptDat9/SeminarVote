@@ -311,8 +311,8 @@ contract Voting is Initializable, AccessControlUpgradeable {
     {
         VotingRound storage round = votingRounds[roundId];
         require(round.isActive, "Voting round is not active");
-        require(newEndTime > block.timestamp, "New end time must be in the future");
-        require(newEndTime > round.startTime, "New end time must be after start time");
+        require(newEndTime > block.timestamp, "New end time must > block.timestamp");
+        require(newEndTime > round.startTime, "New end time must > start time");
 
         round.endTime = newEndTime;
     }
