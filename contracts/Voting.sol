@@ -272,4 +272,8 @@ contract Voting is Initializable, AccessControlUpgradeable {
         }
         return (maxSeminarId, maxVotes);
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 61b85c33cb5f6cfbca46896554adff10615dccac
