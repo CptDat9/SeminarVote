@@ -130,13 +130,6 @@ contract SeminarNFT is
             seminar.speakers
         );
     }
-
-    function getSeminarSpeakers(
-        uint256 tokenId
-    ) public view returns (address[] memory) {
-        return seminarSpeakers[tokenId];
-    }
-
     //nếu thay đổi trên IPFS thì cần phải cập nhật lại metadataURI
     function updateMetadata(
         uint256 tokenId,
