@@ -30,7 +30,7 @@ async function main() {
     const Voting = await ethers.getContractFactory("Voting");
     const voting = await upgrades.deployProxy(
         Voting,
-        [adminAddress, seminarNFTAddress],
+        [adminAddress, seminarNFTAddress, whitelistAddress],
         { initializer: "initialize" }
     );
     await voting.waitForDeployment();
