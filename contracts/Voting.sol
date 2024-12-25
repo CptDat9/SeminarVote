@@ -272,7 +272,8 @@ contract Voting is Initializable, AccessControlUpgradeable {
         }
         return (maxSeminarId, maxVotes);
     }
-/// @dev Lấy danh sách speaker xếp từ vote cao xuống thấp
+    /// @dev Lấy danh sách speaker xếp từ vote cao xuống thấp
+
     function getResultWinner (uint256 roundId) public 
     view 
     onlyRole(ADMIN_ROLE) 
@@ -302,5 +303,17 @@ contract Voting is Initializable, AccessControlUpgradeable {
         }
         return (sortedSpeakers, sortedVotes);
 
+    }
+    /// @dev change deadline
+    function changeVotingDeadline(uint256 roundId, uint256 newEndTime) 
+        public 
+        onlyRole(ADMIN_ROLE) 
+    {
+        VotingRound storage round = votingRounds[roundId];
+        require(round.isActive, "Voting round is not active");
+        require(newEndTime > block.timestamp, "New end time must be in the future");
+        require(newEndTime > round.startTime, "New end time must be after start time");
+
+        round.endTime = newEndTime;
     }
 }
