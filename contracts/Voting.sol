@@ -23,9 +23,9 @@ contract Voting is Initializable, AccessControlUpgradeable {
         address[] votersForSpeaker;
         mapping(uint256 => bool) seminarExist; //seminarExist[seminarId] = true/false
         mapping(address => bool) speakerExist; //speakerExist[speakerAddress] = true/false
+        mapping(uint256 => mapping(address => bool)) checkVotedSeminar; // checkVoted[seminarId][voter] = true/false
+        mapping(address => mapping(address => bool)) checkVotedSpeaker; // checkVoted[speakerAddress][voter] = true/false
     }
-    mapping(uint256 => mapping(address => bool)) public checkVotedSeminar; // checkVoted[seminarId][voter] = true/false
-    mapping(address => mapping(address => bool)) public checkVotedSpeaker; // checkVoted[speakerAddress][voter] = true/false
     SeminarNFT public seminarNFT;
     WhitelistUpgradeableV2 public whitelist;
 
@@ -60,7 +60,11 @@ contract Voting is Initializable, AccessControlUpgradeable {
     event VotingRoundEnded(uint256 indexed roundId);
     event RoleAdded(address indexed account, bytes32 role);
     event RoleRemoved(address indexed account, bytes32 role);
-    event VotingEndTimeChanged(uint256 indexed roundId, uint256 oldEndTime, uint256 newEndTime);
+    event VotingEndTimeChanged(
+        uint256 indexed roundId,
+        uint256 oldEndTime,
+        uint256 newEndTime
+    );
     function initialize(
         address admin,
         address seminarNFTAddress,
@@ -162,7 +166,6 @@ contract Voting is Initializable, AccessControlUpgradeable {
         }
     }
 
-
     // Hàm bỏ phiếu
     function voteForSeminar(
         uint256 roundId,
@@ -175,43 +178,41 @@ contract Voting is Initializable, AccessControlUpgradeable {
     {
         VotingRound storage round = votingRounds[roundId];
         require(
-            userVotesForSeminar[roundId][msg.sender] < round.maxVotesPerVoterForSeminar,
+            userVotesForSeminar[roundId][msg.sender] <
+                round.maxVotesPerVoterForSeminar,
             "Max votes exceeded"
         );
         require(
-            !checkVotedSeminar[seminarId][msg.sender],
+            !round.checkVotedSeminar[seminarId][msg.sender],
             "You have already voted for this seminar"
         );
 
         userVotesForSeminar[roundId][msg.sender]++;
         totalVotes[roundId][seminarId]++;
-        checkVotedSeminar[seminarId][msg.sender] = true;
+        round.checkVotedSeminar[seminarId][msg.sender] = true;
         round.votersForSeminar.push(msg.sender);
         emit VotedSeminar(roundId, seminarId, msg.sender);
     }
 
     // @dev Bỏ phiếu cho speaker
-    function voteForSpeaker (
+    function voteForSpeaker(
         uint256 roundId,
         address speaker
-    )
-        public
-        onlyActiveRound(roundId)
-        onlyRole(VOTER_ROLE)
-    {
+    ) public onlyActiveRound(roundId) onlyRole(VOTER_ROLE) {
         VotingRound storage round = votingRounds[roundId];
         require(
-            userVotesForSpeaker[roundId][msg.sender] < round.maxVotesPerVoterForSpeaker,
+            userVotesForSpeaker[roundId][msg.sender] <
+                round.maxVotesPerVoterForSpeaker,
             "Max votes exceeded"
         );
         require(
-            !checkVotedSpeaker[speaker][msg.sender],
+            !round.checkVotedSpeaker[speaker][msg.sender],
             "You have already voted for this speaker"
         );
 
         userVotesForSpeaker[roundId][msg.sender]++;
         round.speakerVotes[speaker]++;
-        checkVotedSpeaker[speaker][msg.sender] = true;
+        round.checkVotedSpeaker[speaker][msg.sender] = true;
         round.votersForSpeaker.push(msg.sender);
         emit VotedSpeaker(roundId, speaker, msg.sender); // sự kiện votedspeaker ở trên
     }
@@ -235,7 +236,7 @@ contract Voting is Initializable, AccessControlUpgradeable {
         VotingRound storage round = votingRounds[roundId];
         return round.votersForSeminar;
     }
-    
+
     // Hàm lấy số phiếu của một speaker cụ thể
     function getSpeakerVotes(
         uint256 roundId,
@@ -306,10 +307,13 @@ contract Voting is Initializable, AccessControlUpgradeable {
     }
     /// @dev Lấy danh sách speaker xếp từ vote cao xuống thấp
 
-    function getResultSpeaker (uint256 roundId) public 
-    view 
-    onlyRole(ADMIN_ROLE) 
-    returns (address[] memory sortedSpeakers, uint256[] memory sortedVotes)
+    function getResultSpeaker(
+        uint256 roundId
+    )
+        public
+        view
+        onlyRole(ADMIN_ROLE)
+        returns (address[] memory sortedSpeakers, uint256[] memory sortedVotes)
     {
         VotingRound storage round = votingRounds[roundId];
         address[] memory speakers = round.speakersInRound;
@@ -321,31 +325,36 @@ contract Voting is Initializable, AccessControlUpgradeable {
             sortedSpeakers[i] = speakers[i];
             sortedVotes[i] = round.speakerVotes[speakers[i]];
         }
-        for (uint256 i = 0; i < speakerCount; i++){
-            for(uint256 j = i+1; j<speakerCount; j++){
+        for (uint256 i = 0; i < speakerCount; i++) {
+            for (uint256 j = i + 1; j < speakerCount; j++) {
                 if (sortedVotes[i] < sortedVotes[j]) {
-                uint256 temp = sortedVotes[i];
-                sortedVotes[i] = sortedVotes[j];
-                sortedVotes[j] = temp;
-                address tempSpeaker = sortedSpeakers[i];
-                sortedSpeakers[i] = sortedSpeakers[j];
-                sortedSpeakers[j] = tempSpeaker;
+                    uint256 temp = sortedVotes[i];
+                    sortedVotes[i] = sortedVotes[j];
+                    sortedVotes[j] = temp;
+                    address tempSpeaker = sortedSpeakers[i];
+                    sortedSpeakers[i] = sortedSpeakers[j];
+                    sortedSpeakers[j] = tempSpeaker;
+                }
             }
         }
-        }
         return (sortedSpeakers, sortedVotes);
-
     }
-    
+
     /// @dev change deadline
-    function changeVotingEndtime(uint256 roundId, uint256 newEndTime) 
-        public 
-        onlyRole(ADMIN_ROLE) 
-    {
+    function changeVotingEndtime(
+        uint256 roundId,
+        uint256 newEndTime
+    ) public onlyRole(ADMIN_ROLE) {
         VotingRound storage round = votingRounds[roundId];
         require(round.isActive, "Voting round is not active");
-        require(newEndTime > block.timestamp, "New end time must be in the future");
-        require(newEndTime > round.startTime, "New end time must be after start time");
+        require(
+            newEndTime > block.timestamp,
+            "New end time must be in the future"
+        );
+        require(
+            newEndTime > round.startTime,
+            "New end time must be after start time"
+        );
         uint256 oldEndTime = round.endTime;
         round.endTime = newEndTime;
         emit VotingEndTimeChanged(roundId, oldEndTime, newEndTime);

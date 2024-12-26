@@ -1,116 +1,143 @@
 const { expect } = require("chai");
-const { ethers, upgrades } = require("hardhat");
+const { ethers , upgrades } = require("hardhat");
 
-describe("WhitelistUpgradeableV2", function () {
-    let whitelist, owner, admin, voter, other, nonAdmin;
+describe("Voter and winner in Voting", function () {
+    let Voting, voting, SeminarNFT, seminarNFT, Whitelist, whitelist;
+    let owner, admin, voter, speaker1, speaker2, speaker3, nonAdmin, voter1, voter2, voter3;
 
     beforeEach(async function () {
-        [owner, admin, voter, other, nonAdmin] = await ethers.getSigners();
+        [owner, admin, voter, speaker1, speaker2, speaker3, nonAdmin, voter1, voter2, voter3] = await ethers.getSigners();
 
-        const WhitelistFactory = await ethers.getContractFactory("WhitelistUpgradeableV2");
-        whitelist = await upgrades.deployProxy(WhitelistFactory, [owner.address], { initializer: "initialize" });
+        Whitelist = await ethers.getContractFactory("WhitelistUpgradeableV2");
+        whitelist = await Whitelist.deploy();
+        await whitelist.waitForDeployment();
+        await whitelist.initialize(admin.address); // Cấp ADMIN_ROLE cho admin
+        SeminarNFT = await ethers.getContractFactory("SeminarNFT");
+        seminarNFT = await SeminarNFT.deploy();
+        await seminarNFT.waitForDeployment();
+        await seminarNFT.initialize(admin.address); // Cấp ADMIN_ROLE cho admin
+        Voting = await ethers.getContractFactory("Voting");
+        voting = await Voting.deploy();
+        await voting.waitForDeployment();
+        await voting.initialize(admin.address, seminarNFT.target, whitelist.target);
+        
+        await seminarNFT.connect(admin).mintSeminar(
+            "Seminar 1",
+            "Descrip 1",
+            "image 1",
+            "Speaker 1 ",
+            "metadataURL 1",
+            [speaker1.address, speaker2.address]
+        );
+        await seminarNFT.connect(admin).mintSeminar(
+            "Seminar 2",
+            "Descrip 2",
+            "image 2",
+            "Speaker 2 ",
+            "metadataURL 2",
+            [speaker2.address, speaker3.address]
+        );
+        await seminarNFT.connect(admin).mintSeminar(
+            "Seminar 3",
+            "Descrip 3",
+            "image 3",
+            "Speaker 3 ",
+            "metadataURL 3",
+            [speaker3.address, speaker1.address]
+        );
+
+        await seminarNFT.connect(admin).mintSeminar(
+            "Seminar 4",
+            "Descrip 4",
+            "image 4",
+            "Speaker 4 ",
+            "metadataURL 4",
+            [speaker1.address, speaker2.address]
+        );
+        
+        const startTime = Math.floor(Date.now() / 1000);
+        const endTime = startTime * 2;
+        await voting.connect(admin).createVotingRound(startTime, endTime, 3);
+        
+        await voting.connect(admin).addSeminarToRound(1, 1);
+        await voting.connect(admin).addSeminarToRound(1, 2);
+        await voting.connect(admin).addSeminarToRound(1, 4);
+        await voting.connect(admin).addSeminarToRound(1, 3);
+        await whitelist.connect(admin).addVoter(voter);
     });
 
-    it("Owner có admin role ?", async function () {
-        const ADMIN_ROLE = await whitelist.ADMIN_ROLE();
-        expect(await whitelist.hasRole(ADMIN_ROLE, owner.address)).to.equal(true);
+    it(" Initialize thành công", async function () {
+        expect(await voting.hasRole(await voting.ADMIN_ROLE(), admin.address)).to.equal(true);
+        expect(await voting.seminarNFT()).to.equal(seminarNFT.target);
     });
-    it ("Kiem tra 1 tai khoan sau khi dc add thi dc la voter", async function(){
-        const VOTER_ROLE = await whitelist.VOTER_ROLE();
-        const ADMIN_ROLE = await whitelist.ADMIN_ROLE();
-        await whitelist.connect(owner).addAdmin(admin.address);
-        expect(await whitelist.hasRole(ADMIN_ROLE, admin.address)).to.equal(true);
-        await whitelist.connect(admin).addVoter(voter.address);
-        expect(await whitelist.hasRole(VOTER_ROLE, voter.address)).to.equal(true);
-        expect(await whitelist.isVoter(voter.address)).to.equal(true);
-        await whitelist.connect(admin).removeVoter(voter.address);
-        expect(await whitelist.hasRole(VOTER_ROLE, voter.address)).to.equal(false);   
-    });
-    it("Admin co the add voter, voter có role hợp lệ.", async function () {
-        const ADMIN_ROLE = await whitelist.ADMIN_ROLE();
-        const VOTER_ROLE = await whitelist.VOTER_ROLE();
-        await whitelist.connect(owner).addAdmin(admin.address);
-        expect(await whitelist.hasRole(ADMIN_ROLE, admin.address)).to.equal(true);
-        await whitelist.connect(admin).addVoter(voter.address);
-        expect(await whitelist.hasRole(VOTER_ROLE, voter.address)).to.equal(true);
-        expect(await whitelist.isVoter(voter.address)).to.equal(true);
+    
+    it("Test other voting", async function () {
+        await expect(
+            voting.connect(nonAdmin).vote(1, 1)
+        ).to.be.reverted;
     });
 
-    it("Non-admin ko the add voters", async function () {
-        const ADMIN_ROLE = await whitelist.ADMIN_ROLE();
-
-        await whitelist.connect(owner).addAdmin(admin.address);
-        await whitelist.connect(admin).addVoter(voter.address);
-
-        await expect(whitelist.connect(nonAdmin).addVoter(voter.address))
-        .to.be.revertedWithCustomError(whitelist, "AccessControlUnauthorizedAccount")
-        .withArgs(nonAdmin.address, ADMIN_ROLE);
+    it("Test normal voting", async function () {
+        await expect(
+            voting.connect(voter).vote(1, 1)
+        ).to.emit(voting, "Voted").withArgs(1, 1, voter.address);
+        await expect(
+            voting.connect(voter).vote(1, 2)
+        ).to.emit(voting, "Voted").withArgs(1, 2, voter.address);
+        await expect(
+            voting.connect(voter).vote(1, 3)
+        ).to.emit(voting, "Voted").withArgs(1, 3, voter.address);
     });
 
-    it("Owner co the add/remove admin", async function () { 
-        const ADMIN_ROLE = await whitelist.ADMIN_ROLE();
-
-        await whitelist.connect(owner).addAdmin(admin.address);
-        expect(await whitelist.hasRole(ADMIN_ROLE, admin.address)).to.equal(true);
-
-        await whitelist.connect(owner).removeAdmin(admin.address);
-        expect(await whitelist.hasRole(ADMIN_ROLE, admin.address)).to.equal(false);
+    it("Test double voting", async function () {
+        await expect(
+            voting.connect(voter).vote(1, 1)
+        ).to.emit(voting, "Voted").withArgs(1, 1, voter.address);
+        await expect(
+            voting.connect(voter).vote(1, 1)
+        ).to.be.revertedWith("You have already voted for this seminar");
     });
 
-    it("Admin co the add/remove voters", async function () {
-        const VOTER_ROLE = await whitelist.VOTER_ROLE();
-
-        await whitelist.connect(owner).addAdmin(admin.address);
-        await whitelist.connect(admin).addVoter(voter.address);
-        expect(await whitelist.hasRole(VOTER_ROLE, voter.address)).to.equal(true);
-
-        await whitelist.connect(admin).removeVoter(voter.address);
-        expect(await whitelist.hasRole(VOTER_ROLE, voter.address)).to.equal(false);
+    it("Test number of votes exceeded the limit",async function () {
+        await expect(
+            voting.connect(voter).vote(1, 1)
+        ).to.emit(voting, "Voted").withArgs(1, 1, voter.address);
+        await expect(
+            voting.connect(voter).vote(1, 2)
+        ).to.emit(voting, "Voted").withArgs(1, 2, voter.address);
+        await expect(
+            voting.connect(voter).vote(1, 4)
+        ).to.emit(voting, "Voted").withArgs(1, 4, voter.address);      
+        await expect(
+            voting.connect(voter).vote(1, 3)
+        ).to.be.revertedWith("Max votes exceeded");     
     });
 
-    it("Phat ra su kien (emit) RoleAdded and RoleRemoved (admin) ", async function () {
-        const ADMIN_ROLE = await whitelist.ADMIN_ROLE();
+    it("Test get max speaker & seminar", async function () {
+        await whitelist.connect(admin).addVoter(voter1);
+        await whitelist.connect(admin).addVoter(voter2);
+        await whitelist.connect(admin).addVoter(voter3);
 
-        await expect(whitelist.connect(owner).addAdmin(admin.address))
-            .to.emit(whitelist, "RoleAdded")
-            .withArgs(admin.address, ADMIN_ROLE);
+        await voting.connect(voter1).vote(1, 1);
+        await voting.connect(voter1).vote(1, 3);
+        await voting.connect(voter1).vote(1, 4);
+        await voting.connect(voter2).vote(1, 1);
+        await voting.connect(voter2).vote(1, 2);
+        await voting.connect(voter2).vote(1, 3);
+        await voting.connect(voter3).vote(1, 1);
+        await voting.connect(voter3).vote(1, 2);
+        await voting.connect(voter3).vote(1, 3);
 
-        await expect(whitelist.connect(owner).removeAdmin(admin.address))
-            .to.emit(whitelist, "RoleRemoved")
-            .withArgs(admin.address, ADMIN_ROLE);
+        await expect(voting.connect(nonAdmin).getWinnerSpeaker(1)).to.be.reverted;
+        await expect(voting.connect(nonAdmin).getWinnerSeminar(1)).to.be.reverted;
+
+        const speakerWin = await voting.connect(admin).getWinnerSpeaker(1);
+        expect(speakerWin[0]).to.equal(speaker1);
+        expect(speakerWin[1]).to.equal(7);
+
+        const seminarWin = await voting.connect(admin).getWinnerSeminar(1);
+        expect(seminarWin[0]).to.equal(1);
+        expect(seminarWin[1]).to.equal(3);
     });
+
 });
-/*
-const {expect} = require("chai");
-const {ethers, upgrades} = require("hardhat");
-describe("WhitelistUpgradeableV2", function() {
-    let whitelist, owner, admin, voter, other, nonAdmin;
-    beforeEach(async function(){
-        [owner, admin, voter, other, nonAdmin] = await ethers.getSigner();
-        const WhitelistFactory = await ethers.getContractFactory("WhitelistUpgradeableV2");
-        whitelist = await upgrades.deployProxy(WhitelistFactory, [owner.address], { initializer: "initialize" });
-    });
-    it("Owner có admin role ?", async function () {
-        const ADMIN_ROLE = await whitelist.ADMIN_ROLE();
-        expect(await whitelist.hasRole(ADMIN_ROLE, owner.address)).to.equal(true);
-    });
-    it("Admin co the add voter, voter có role hợp lệ.", async function () {
-        const ADMIN_ROLE = await whitelist.ADMIN_ROLE();
-        const VOTER_ROLE = await whitelist.VOTER_ROLE();
-        await whitelist.connect(owner).addAdmin(admin.address);
-        expect(await whitelist.hasRole(ADMIN_ROLE, admin.address)).to.equal(true);
-        await whitelist.connect(admin).addVoter(voter.address);
-        expect(await whitelist.hasRole(VOTER_ROLE, voter.address)).to.equal(true);
-        expect(await whitelist.isVoter(voter.address)).to.equal(true);
-    });
-    it("Non admin khong the add voter", async function () {
-        const ADMIN_ROLE = await whitelist.ADMIN_ROLE();
-        const VOTER_ROLE = await whitelist.VOTER_ROLE();
-        await whitelist.conncect(owner).addAdmin(admin.address);
-        await whitelist.conncect(admin).addVoter(voter.address);
-        await expect(whitelist.connect(nonAdmin).addVoter(voter.address)).to.be
-        .revertedWith(`AccessControl: account ${nonAdmin.address.toLowerCase()} is missing role ${await whitelist.ADMIN_ROLE()}`);
-    });
- // Errror kieu khac
-});
-*/
