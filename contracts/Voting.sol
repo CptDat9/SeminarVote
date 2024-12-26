@@ -361,6 +361,33 @@ contract Voting is Initializable, AccessControlUpgradeable {
         }
         return (sortedSpeakers, sortedVotes);
     }
+    function getResultSeminar(
+    uint256 roundId
+    ) public 
+     view
+    onlyRole(ADMIN_ROLE)
+    returns (uint256[] memory sortedSeminarIds, uint256[] memory sortedVotes) {
+        VotingRound storage round = votingRounds[roundId];
+        uint256[] memory seminars = round.seminarIds;
+        require(seminars.length > 0, "No votes and seminar yet.");
+        uint256 seminarCount = seminars.length;
+        sortedSeminarIds = new uint256[](seminarCount);
+        sortedVotes = new uint256[](seminarCount);
+        for (uint256 i = 0; i < seminarCount; i++) {
+            sortedSeminarIds[i] = seminars[i];
+            sortedVotes[i] = totalVotes[roundId][seminars[i]];
+        }
+    // BUBBLE SORT
+        for (uint256 i = 0; i < seminarCount - 1; i++) {
+            for (uint256 j = 0; j < seminarCount - i - 1; j++) {
+                if (sortedVotes[j] < sortedVotes[j + 1]) {
+                (sortedVotes[j], sortedVotes[j + 1]) = (sortedVotes[j + 1], sortedVotes[j]);
+                (sortedSeminarIds[j], sortedSeminarIds[j + 1]) = (sortedSeminarIds[j + 1], sortedSeminarIds[j]);
+            }
+        }
+    }
+        return (sortedSeminarIds, sortedVotes);
+}
 
     /// @dev change deadline
     function changeVotingEndtime(
