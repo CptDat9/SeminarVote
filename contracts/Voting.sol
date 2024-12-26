@@ -50,6 +50,42 @@ contract Voting is Initializable, AccessControlUpgradeable {
         return votingRounds[roundId].checkVotedSpeaker[speaker][voter];
     }
 
+    function getVotersDontVoteForSeminar(
+        uint256 roundId
+    ) public view returns (address[] memory) {
+        address[] memory list = whitelist.getVotersList();
+        uint256 count = 0;
+        for (uint i = 0; i < list.length; ++i) {
+            address voter = list[i];
+            if (userVotesForSeminar[roundId][voter] == 0) ++count;
+        }
+        address[] memory votersDontVote = new address[](count);
+        for (uint i = 0; i < list.length; ++i) {
+            address voter = list[i];
+            if (userVotesForSeminar[roundId][voter] == 0)
+                votersDontVote[--count] = voter;
+        }
+        return votersDontVote;
+    }
+
+    function getVotersDontVoteForSpeaker(
+        uint256 roundId
+    ) public view returns (address[] memory) {
+        address[] memory list = whitelist.getVotersList();
+        uint256 count = 0;
+        for (uint i = 0; i < list.length; ++i) {
+            address voter = list[i];
+            if (userVotesForSpeaker[roundId][voter] == 0) ++count;
+        }
+        address[] memory votersDontVote = new address[](count);
+        for (uint i = 0; i < list.length; ++i) {
+            address voter = list[i];
+            if (userVotesForSpeaker[roundId][voter] == 0)
+                votersDontVote[--count] = voter;
+        }
+        return votersDontVote;
+    }
+
     uint256 public nextRoundId;
 
     event VotingRoundCreated(
@@ -208,6 +244,27 @@ contract Voting is Initializable, AccessControlUpgradeable {
         round.checkVotedSeminar[seminarId][msg.sender] = true;
         round.votersForSeminar.push(msg.sender);
         emit VotedSeminar(roundId, seminarId, msg.sender);
+    }
+
+    function removeVoteSeminar(
+        uint256 roundId,
+        uint256 seminarId
+    )
+        public
+        onlyActiveRound(roundId)
+        onlySeminarInRound(roundId, seminarId)
+        onlyRole(VOTER_ROLE)
+    {
+        VotingRound storage round = votingRounds[roundId];
+        require(
+            round.checkVotedSeminar[seminarId][msg.sender],
+            "You have never voted for this seminar"
+        );
+
+        userVotesForSeminar[roundId][msg.sender]--;
+        totalVotes[roundId][seminarId]--;
+        round.checkVotedSeminar[seminarId][msg.sender] = false;
+        round.votersForSeminar.push(msg.sender);
     }
 
     // @dev Bỏ phiếu cho speaker
