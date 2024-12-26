@@ -3,10 +3,10 @@ const { ethers } = require("hardhat");
 
 describe("Voting Contract", function () {
   let Voting, SeminarNFT, Whitelist, voting, seminarNFT, whitelist;
-  let admin, voter1, voter2, speaker1, speaker2, speaker3, speaker4;
+  let admin, voter1, voter2, voter3, speaker1, speaker2, speaker3, speaker4;
 
   beforeEach(async function () {
-    [admin, voter1, voter2, speaker1, speaker2, speaker3, speaker4] = await ethers.getSigners();
+    [admin, voter1, voter2, voter3, speaker1, speaker2, speaker3, speaker4] = await ethers.getSigners();
 
     const SeminarNFTFactory = await ethers.getContractFactory("SeminarNFT");
     seminarNFT = await SeminarNFTFactory.deploy();
@@ -29,6 +29,7 @@ describe("Voting Contract", function () {
     const VOTER_ROLE = await voting.VOTER_ROLE();
     await whitelist.connect(admin).grantRole(VOTER_ROLE, voter1.address);
     await whitelist.connect(admin).grantRole(VOTER_ROLE, voter2.address);
+    await whitelist.connect(admin).grantRole(VOTER_ROLE, voter3.address);
 
     await seminarNFT.connect(admin).mintSeminar(
       "Seminar 1",
@@ -162,5 +163,30 @@ describe("Voting Contract", function () {
     const round = await voting.votingRounds(1);
     expect(round.endTime).to.equal(newEndTime);
   });
-
+  it("Có thể lấy kết quả speaker theo số lượng phiếu giảm dần", async function () {
+    await voting.connect(voter1).voteForSpeaker(1, speaker1.address);
+    await voting.connect(voter1).voteForSpeaker(1, speaker2.address);
+    await voting.connect(voter3).voteForSpeaker(1, speaker2.address);
+    await voting.connect(voter2).voteForSpeaker(1, speaker2.address);
+    const [sortedSpeakers, sortedVotes] = await voting.connect(admin).getResultSpeaker(1);
+  
+    expect(sortedSpeakers[0]).to.equal(speaker2.address);
+    expect(sortedVotes[0]).to.equal(3); 
+    expect(sortedSpeakers[1]).to.equal(speaker1.address);
+    expect(sortedVotes[1]).to.equal(1); 
+  
+    expect(sortedSpeakers.length).to.equal(4);
+    expect(sortedVotes.length).to.equal(4);
+  });
+  
+  it("Trả về lỗi nếu không có speaker nào trong vòng", async function () {
+    const startTime = Math.floor(Date.now() / 1000) + 10;
+    const endTime = startTime + 3600;
+  
+    await voting.connect(admin).createVotingRound(startTime, endTime, 2, 2);
+  
+    await expect(voting.connect(admin).getResultSpeaker(2))
+      .to.be.revertedWith("No votes and speaker yet.");
+  });
+  
 });
