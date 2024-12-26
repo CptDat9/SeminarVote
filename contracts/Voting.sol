@@ -489,18 +489,18 @@ contract Voting is Initializable, AccessControlUpgradeable {
     /// @dev lấy danh sách voter chưa bỏ phiếu cho seminar
     function getVotersDontVoteForSeminar(
         uint256 roundId
-    ) public view returns (address[] memory) {
+    ) public view returns (string[] memory) {
         address[] memory list = whitelist.getVotersList();
         uint256 count = 0;
         for (uint i = 0; i < list.length; ++i) {
             address voter = list[i];
-            if (userVotesForSeminar[roundId][voter] == 0) ++count;
+            if (!(userVotesForSeminar[roundId][voter] > 0)) ++count;
         }
-        address[] memory votersDontVote = new address[](count);
+        string[] memory votersDontVote = new string[](count);
         for (uint i = 0; i < list.length; ++i) {
             address voter = list[i];
-            if (userVotesForSeminar[roundId][voter] == 0)
-                votersDontVote[--count] = voter;
+            if (!(userVotesForSeminar[roundId][voter] > 0))
+                votersDontVote[--count] = whitelist.getName(voter);
         }
         return votersDontVote;
     }
@@ -508,18 +508,18 @@ contract Voting is Initializable, AccessControlUpgradeable {
     /// @dev lấy danh sách voter chưa bỏ phiếu cho speaker
     function getVotersDontVoteForSpeaker(
         uint256 roundId
-    ) public view returns (address[] memory) {
+    ) public view returns (string[] memory) {
         address[] memory list = whitelist.getVotersList();
         uint256 count = 0;
         for (uint i = 0; i < list.length; ++i) {
             address voter = list[i];
-            if (userVotesForSpeaker[roundId][voter] == 0) ++count;
+            if (!(userVotesForSpeaker[roundId][voter] > 0)) ++count;
         }
-        address[] memory votersDontVote = new address[](count);
+        string[] memory votersDontVote = new string[](count);
         for (uint i = 0; i < list.length; ++i) {
             address voter = list[i];
-            if (userVotesForSpeaker[roundId][voter] == 0)
-                votersDontVote[--count] = voter;
+            if (!(userVotesForSpeaker[roundId][voter] > 0))
+                votersDontVote[--count] = whitelist.getName(voter);
         }
         return votersDontVote;
     }
