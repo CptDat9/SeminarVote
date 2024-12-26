@@ -154,14 +154,15 @@ describe("Voting Contract", function () {
       .to.be.revertedWith("Max votes exceeded");
   });
   it("Có thể thay đổi thời gian kết thúc của một voting round", async function () {
+    const round = await voting.votingRounds(1);     
     const newEndTime = Math.floor(Date.now() / 1000) + 7200; 
-    const oldEndTime = Math.floor(Date.now() / 1000) + 3600;
+    const oldEndTime = round.endTime;
     await expect(voting.connect(admin).changeVotingEndtime(1, newEndTime))
       .to.emit(voting, "VotingEndTimeChanged")
       .withArgs(1, oldEndTime, newEndTime);
 
-    const round = await voting.votingRounds(1);
-    expect(round.endTime).to.equal(newEndTime);
+    const newRound = await voting.votingRounds(1);
+    expect(newRound.endTime).to.equal(newEndTime);
   });
   it("Có thể lấy kết quả speaker theo số lượng phiếu giảm dần", async function () {
     await voting.connect(voter1).voteForSpeaker(1, speaker1.address);
@@ -187,6 +188,31 @@ describe("Voting Contract", function () {
   
     await expect(voting.connect(admin).getResultSpeaker(2))
       .to.be.revertedWith("No votes and speaker yet.");
+  });
+  it("Có thể lấy kết quả seminar theo số lượng phiếu giảm dần", async function () {
+    await voting.connect(voter1).voteForSeminar(1, 1);
+    await voting.connect(voter1).voteForSeminar(1, 2);
+    await voting.connect(voter3).voteForSeminar(1, 1);
+    await voting.connect(voter2).voteForSeminar(1, 3);
+    const [sortedSeminarIds, sortedVotes] = await voting.connect(admin).getResultSeminar(1);
+  
+    expect(sortedSeminarIds[0]).to.equal(1);
+    expect(sortedVotes[0]).to.equal(2); 
+    expect(sortedSeminarIds[1]).to.equal(2);
+    expect(sortedVotes[1]).to.equal(1); 
+  
+    expect(sortedSeminarIds.length).to.equal(4);
+    expect(sortedVotes.length).to.equal(4);
+  });
+  
+  it("Trả về lỗi nếu không có seminar nào trong vòng", async function () {
+    const startTime = Math.floor(Date.now() / 1000) + 10;
+    const endTime = startTime + 3600;
+  
+    await voting.connect(admin).createVotingRound(startTime, endTime, 2, 2);
+  
+    await expect(voting.connect(admin).getResultSeminar(2))
+      .to.be.revertedWith("No votes and seminar yet.");
   });
   
 });
