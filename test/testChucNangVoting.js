@@ -27,9 +27,9 @@ describe("Voting Contract", function () {
     await whitelist.connect(admin).grantRole(ADMIN_ROLE, admin.address);
 
     const VOTER_ROLE = await voting.VOTER_ROLE();
-    await whitelist.connect(admin).grantRole(VOTER_ROLE, voter1.address);
-    await whitelist.connect(admin).grantRole(VOTER_ROLE, voter2.address);
-    await whitelist.connect(admin).grantRole(VOTER_ROLE, voter3.address);
+    await whitelist.connect(admin).addVoter(voter1.address);
+    await whitelist.connect(admin).addVoter(voter2.address);
+    await whitelist.connect(admin).addVoter(voter3.address);
 
     await seminarNFT.connect(admin).mintSeminar(
       "Seminar 1",
@@ -66,7 +66,7 @@ describe("Voting Contract", function () {
     const maxVotesPerVoterForSpeaker = 2;
     const maxVotesPerVoterForSeminar = 2;
     const startTime = Math.floor(Date.now() / 1000);
-    const endTime = startTime + 3600;
+    const endTime = startTime * 2;
 
     await voting.connect(admin).createVotingRound(startTime, endTime, maxVotesPerVoterForSeminar, maxVotesPerVoterForSpeaker);
     await voting.connect(admin).addSeminarToRound(1, 1);
@@ -78,7 +78,7 @@ describe("Voting Contract", function () {
   it("Có thể tạo một voting round mới", async function () {
     const maxVotes = 2;
     const startTime = Math.floor(Date.now() / 1000);
-    const endTime = startTime + 3600;
+    const endTime = startTime * 2;
 
     await expect(voting.connect(admin).createVotingRound(startTime, endTime, maxVotes, 1))
       .to.emit(voting, "VotingRoundCreated")
@@ -92,7 +92,7 @@ describe("Voting Contract", function () {
 
   it("Có thể thêm seminar vào voting round", async function () {
     const startTime = Math.floor(Date.now() / 1000) + 10;
-    const endTime = startTime + 3600;
+    const endTime = startTime * 2;
 
     await voting.connect(admin).createVotingRound(startTime, endTime, 2, 2);
     await expect(voting.connect(admin).addSeminarToRound(2, 1))
@@ -155,7 +155,7 @@ describe("Voting Contract", function () {
   });
   it("Có thể thay đổi thời gian kết thúc của một voting round", async function () {
     const round = await voting.votingRounds(1);     
-    const newEndTime = Math.floor(Date.now() / 1000) + 7200; 
+    const newEndTime = Math.floor(Date.now() / 1000) * 2; 
     const oldEndTime = round.endTime;
     await expect(voting.connect(admin).changeVotingEndtime(1, newEndTime))
       .to.emit(voting, "VotingEndTimeChanged")
@@ -169,11 +169,12 @@ describe("Voting Contract", function () {
     await voting.connect(voter1).voteForSpeaker(1, speaker2.address);
     await voting.connect(voter3).voteForSpeaker(1, speaker2.address);
     await voting.connect(voter2).voteForSpeaker(1, speaker2.address);
+    await whitelist.setName(speaker2.address, "p298");  
+    await whitelist.setName(speaker1.address, "p1");  
     const [sortedSpeakers, sortedVotes] = await voting.connect(admin).getResultSpeaker(1);
-  
-    expect(sortedSpeakers[0]).to.equal(speaker2.address);
+    expect(sortedSpeakers[0]).to.equal((await whitelist.getName(speaker2.address)));
     expect(sortedVotes[0]).to.equal(3); 
-    expect(sortedSpeakers[1]).to.equal(speaker1.address);
+    expect(sortedSpeakers[1]).to.equal((await whitelist.getName(speaker1.address)));
     expect(sortedVotes[1]).to.equal(1); 
   
     expect(sortedSpeakers.length).to.equal(4);
@@ -182,7 +183,7 @@ describe("Voting Contract", function () {
   
   it("Trả về lỗi nếu không có speaker nào trong vòng", async function () {
     const startTime = Math.floor(Date.now() / 1000) + 10;
-    const endTime = startTime + 3600;
+    const endTime = startTime * 2;
   
     await voting.connect(admin).createVotingRound(startTime, endTime, 2, 2);
   
@@ -214,5 +215,51 @@ describe("Voting Contract", function () {
     await expect(voting.connect(admin).getResultSeminar(2))
       .to.be.revertedWith("No votes and seminar yet.");
   });
+
+  it("Test remove voter", async function () {
+    const list = await whitelist.getVotersList();
+    expect(list.length).to.equal(3);
+    whitelist.connect(admin).removeVoter(voter1.address);
+    const list2 = await whitelist.getVotersList();
+    expect(list2.length).to.equal(3);
+  });
+  
+  it("Test remove vote & get voters dont vote for seminar", async function () {
+    await voting.connect(voter1).voteForSeminar(1, 1);
+    await voting.connect(voter1).voteForSeminar(1, 2);
+    await voting.connect(voter3).voteForSeminar(1, 1);
+    await voting.connect(voter2).voteForSeminar(1, 3);
+
+    await expect(voting.connect(voter1).removeVoteForSeminar(1, 1)).
+      to.emit(voting, "RemoveVotedSeminar").withArgs(1, 1, voter1.address);
+        
+    await expect(voting.connect(voter1).removeVoteForSeminar(1, 2)).
+    to.emit(voting, "RemoveVotedSeminar").withArgs(1, 2, voter1.address);
+
+    await whitelist.setName(voter1.address, "p1");
+    const list = await voting.getVotersDontVoteForSeminar(1);
+    expect(list.length).to.equal(1);
+    expect(list[0]).to.equal(await whitelist.getName(voter1.address));
+  });
+  
+  it("Test remove vote & get voters dont vote for speaker", async function () {
+    await voting.connect(voter1).voteForSpeaker(1, speaker1.address);
+    await voting.connect(voter1).voteForSpeaker(1, speaker2.address);
+    await voting.connect(voter3).voteForSpeaker(1, speaker2.address);
+    await voting.connect(voter2).voteForSpeaker(1, speaker2.address);
+
+    await expect(voting.connect(voter1).removeVoteForSpeaker(1, speaker1.address)).
+      to.emit(voting, "RemoveVotedSpeaker").withArgs(1, speaker1.address, voter1.address);
+        
+    await expect(voting.connect(voter1).removeVoteForSpeaker(1, speaker2.address)).
+    to.emit(voting, "RemoveVotedSpeaker").withArgs(1, speaker2.address, voter1.address);
+
+    await whitelist.setName(voter1.address, "p1");
+    const list = await voting.getVotersDontVoteForSpeaker(1);
+    expect(list.length).to.equal(1);
+    expect(list[0]).to.equal(await whitelist.getName(voter1.address));
+  });
+
+
   
 });
