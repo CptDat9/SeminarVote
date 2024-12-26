@@ -34,6 +34,22 @@ contract Voting is Initializable, AccessControlUpgradeable {
     mapping(uint256 => mapping(address => uint256)) public userVotesForSpeaker; // userVotes[roundId][voter] = number of votes
     mapping(uint256 => mapping(uint256 => uint256)) public totalVotes; // totalVotes[roundId][seminarId] = number of votes
 
+    function getCheckVotedSeminar(
+        uint256 roundId,
+        uint256 seminarId,
+        address voter
+    ) public view returns (bool) {
+        return votingRounds[roundId].checkVotedSeminar[seminarId][voter];
+    }
+
+    function getCheckVotedSpeaker(
+        uint256 roundId,
+        address speaker,
+        address voter
+    ) public view returns (bool) {
+        return votingRounds[roundId].checkVotedSpeaker[speaker][voter];
+    }
+
     uint256 public nextRoundId;
 
     event VotingRoundCreated(
