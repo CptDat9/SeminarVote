@@ -54,7 +54,7 @@ contract Voting is Initializable, AccessControlUpgradeable {
     );
     event VotedSpeaker(
         uint256 indexed roundId,
-        address speaker,
+        address indexed speaker,
         address indexed voter
     );
     event VotingRoundEnded(uint256 indexed roundId);
@@ -213,7 +213,7 @@ contract Voting is Initializable, AccessControlUpgradeable {
         round.speakerVotes[speaker]++;
         checkVotedSpeaker[speaker][msg.sender] = true;
         round.votersForSpeaker.push(msg.sender);
-        emit VotedSpeaker(roundId, speaker, msg.sender);
+        emit VotedSpeaker(roundId, speaker, msg.sender); // sự kiện votedspeaker ở trên
     }
 
     // Hàm kết thúc vòng bỏ phiếu
