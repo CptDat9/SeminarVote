@@ -62,12 +62,12 @@ describe("Voting Contract", function () {
       "metadataURL 4",
       [speaker4.address, speaker1.address]
     );
-
-    const maxVotes = 2;
+    const maxVotesPerVoterForSpeaker = 2;
+    const maxVotesPerVoterForSeminar = 2;
     const startTime = Math.floor(Date.now() / 1000);
     const endTime = startTime + 3600;
 
-    await voting.connect(admin).createVotingRound(startTime, endTime, maxVotes);
+    await voting.connect(admin).createVotingRound(startTime, endTime, maxVotesPerVoterForSeminar, maxVotesPerVoterForSpeaker);
     await voting.connect(admin).addSeminarToRound(1, 1);
     await voting.connect(admin).addSeminarToRound(1, 2);
     await voting.connect(admin).addSeminarToRound(1, 3);
@@ -79,20 +79,21 @@ describe("Voting Contract", function () {
     const startTime = Math.floor(Date.now() / 1000);
     const endTime = startTime + 3600;
 
-    await expect(voting.connect(admin).createVotingRound(startTime, endTime, maxVotes))
+    await expect(voting.connect(admin).createVotingRound(startTime, endTime, maxVotes, 1))
       .to.emit(voting, "VotingRoundCreated")
-      .withArgs(2, startTime, endTime, maxVotes);
+      .withArgs(2, startTime, endTime, maxVotes, 1);
 
     const round = await voting.votingRounds(2);
     expect(round.isActive).to.equal(true);
-    expect(round.maxVotesPerVoter).to.equal(maxVotes);
+    expect(round.maxVotesPerVoterForSeminar).to.equal(maxVotes);
+    expect(round.maxVotesPerVoterForSpeaker).to.equal(1);
   });
 
   it("Có thể thêm seminar vào voting round", async function () {
     const startTime = Math.floor(Date.now() / 1000) + 10;
     const endTime = startTime + 3600;
 
-    await voting.connect(admin).createVotingRound(startTime, endTime, 2);
+    await voting.connect(admin).createVotingRound(startTime, endTime, 2, 2);
     await expect(voting.connect(admin).addSeminarToRound(2, 1))
       .to.emit(voting, "SeminarAddedToRound")
       .withArgs(2, 1);
@@ -102,19 +103,27 @@ describe("Voting Contract", function () {
   });
 
   it("Có thể cho phép voter bỏ phiếu cho seminar", async function () {
-    await expect(voting.connect(voter1).vote(1, 1))
-      .to.emit(voting, "Voted")
+    await expect(voting.connect(voter1).voteForSeminar(1, 1))
+      .to.emit(voting, "VotedSeminar")
       .withArgs(1, 1, voter1.address);
-
     const votes = await voting.totalVotes(1, 1);
     expect(votes).to.equal(1);
-    const hasVoted = await voting.checkVoted(1, voter1.address);
+    const hasVoted = await voting.getCheckVotedSeminar(1, 1, voter1.address);
+    expect(hasVoted).to.be.true;
+  });
+  it("Có thể cho phép voter bỏ phiếu cho speaker", async function () {
+    await expect(voting.connect(voter1).voteForSpeaker(1, speaker1.address))
+      .to.emit(voting, "VotedSpeaker")
+      .withArgs(1, speaker1.address, voter1.address);
+    const votes = await voting.getSpeakerVotes(1, speaker1.address);
+    expect(votes).to.equal(1);
+    const hasVoted = await voting.getCheckVotedSpeaker(1, speaker1.address, voter1.address);
     expect(hasVoted).to.be.true;
   });
 
   it("Tránh double-vote cho cùng một seminar", async function () {
-    await voting.connect(voter1).vote(1, 1);
-    await expect(voting.connect(voter1).vote(1, 1))
+    await voting.connect(voter1).voteForSeminar(1, 1);
+    await expect(voting.connect(voter1).voteForSeminar(1, 1))
       .to.be.revertedWith("You have already voted for this seminar");
   });
 
@@ -122,7 +131,7 @@ describe("Voting Contract", function () {
     const startTime = Math.floor(Date.now() / 1000);
     const endTime = startTime + 10;
   
-    await voting.connect(admin).createVotingRound(startTime, endTime, 2);
+    await voting.connect(admin).createVotingRound(startTime, endTime, 2, 2);
   
     await ethers.provider.send("evm_increaseTime", [15]);
     await ethers.provider.send("evm_mine");
@@ -136,11 +145,11 @@ describe("Voting Contract", function () {
   });
   
 
-  it("Kiểm tra giới hạn số lần vote", async function () {
-    await voting.connect(voter1).vote(1, 1);
-    await voting.connect(voter1).vote(1, 2);
+  it("Kiểm tra giới hạn số lần vote của 1 voter khi vote cho seminar", async function () {
+    await voting.connect(voter1).voteForSeminar(1, 1);
+    await voting.connect(voter1).voteForSeminar(1, 2);
 
-    await expect(voting.connect(voter1).vote(1, 3))
+    await expect(voting.connect(voter1).voteForSeminar(1, 3))
       .to.be.revertedWith("Max votes exceeded");
   });
   it("Có thể thay đổi thời gian kết thúc của một voting round", async function () {
