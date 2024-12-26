@@ -20,6 +20,7 @@ contract WhitelistUpgradeableV2 is
     event RoleRemoved(address indexed account, bytes32 role);
 
     address[] public votersList;
+    mapping (address => string) public nameList;
 
     function getVotersList() public view returns (address[] memory) {
         return votersList;
@@ -77,5 +78,13 @@ contract WhitelistUpgradeableV2 is
     // @dev Check admin.
     function isAdmin(address admin) public view returns (bool) {
         return hasRole(ADMIN_ROLE, admin);
+    }
+
+    function setName(address person, string memory name) public  {
+        nameList[person] = name;
+    }
+
+    function getName(address person) public view returns (string memory) {
+        return nameList[person];
     }
 }
