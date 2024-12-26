@@ -18,9 +18,9 @@ contract Voting is Initializable, AccessControlUpgradeable {
         bool isActive;
         uint256[] seminarIds;
         address[] speakersInRound;
-        mapping(address => uint256) speakerVotes;
-        address[] votersForSeminar;
-        address[] votersForSpeaker;
+        mapping(address => uint256) speakerVotes; // speakerVotes[speakerAddress] = number of votes
+        address[] votersForSeminar; // danh sách người đã bỏ phiếu cho seminar
+        address[] votersForSpeaker; // danh sách người đã bỏ phiếu cho speaker
         mapping(uint256 => bool) seminarExist; //seminarExist[seminarId] = true/false
         mapping(address => bool) speakerExist; //speakerExist[speakerAddress] = true/false
         mapping(uint256 => mapping(address => bool)) checkVotedSeminar; // checkVoted[seminarId][voter] = true/false
@@ -48,42 +48,6 @@ contract Voting is Initializable, AccessControlUpgradeable {
         address voter
     ) public view returns (bool) {
         return votingRounds[roundId].checkVotedSpeaker[speaker][voter];
-    }
-
-    function getVotersDontVoteForSeminar(
-        uint256 roundId
-    ) public view returns (address[] memory) {
-        address[] memory list = whitelist.getVotersList();
-        uint256 count = 0;
-        for (uint i = 0; i < list.length; ++i) {
-            address voter = list[i];
-            if (userVotesForSeminar[roundId][voter] == 0) ++count;
-        }
-        address[] memory votersDontVote = new address[](count);
-        for (uint i = 0; i < list.length; ++i) {
-            address voter = list[i];
-            if (userVotesForSeminar[roundId][voter] == 0)
-                votersDontVote[--count] = voter;
-        }
-        return votersDontVote;
-    }
-
-    function getVotersDontVoteForSpeaker(
-        uint256 roundId
-    ) public view returns (address[] memory) {
-        address[] memory list = whitelist.getVotersList();
-        uint256 count = 0;
-        for (uint i = 0; i < list.length; ++i) {
-            address voter = list[i];
-            if (userVotesForSpeaker[roundId][voter] == 0) ++count;
-        }
-        address[] memory votersDontVote = new address[](count);
-        for (uint i = 0; i < list.length; ++i) {
-            address voter = list[i];
-            if (userVotesForSpeaker[roundId][voter] == 0)
-                votersDontVote[--count] = voter;
-        }
-        return votersDontVote;
     }
 
     uint256 public nextRoundId;
@@ -238,33 +202,16 @@ contract Voting is Initializable, AccessControlUpgradeable {
             !round.checkVotedSeminar[seminarId][msg.sender],
             "You have already voted for this seminar"
         );
-
+        if (userVotesForSeminar[roundId][msg.sender] == 0) { // phiếu đầu thì push phiếu sau không cần
+            round.votersForSeminar.push(msg.sender);
+        }
         userVotesForSeminar[roundId][msg.sender]++;
         totalVotes[roundId][seminarId]++;
         round.checkVotedSeminar[seminarId][msg.sender] = true;
-        round.votersForSeminar.push(msg.sender);
+
+
+        
         emit VotedSeminar(roundId, seminarId, msg.sender);
-    }
-
-    function removeVoteSeminar(
-        uint256 roundId,
-        uint256 seminarId
-    )
-        public
-        onlyActiveRound(roundId)
-        onlySeminarInRound(roundId, seminarId)
-        onlyRole(VOTER_ROLE)
-    {
-        VotingRound storage round = votingRounds[roundId];
-        require(
-            round.checkVotedSeminar[seminarId][msg.sender],
-            "You have never voted for this seminar"
-        );
-
-        userVotesForSeminar[roundId][msg.sender]--;
-        totalVotes[roundId][seminarId]--;
-        round.checkVotedSeminar[seminarId][msg.sender] = false;
-        round.votersForSeminar.push(msg.sender);
     }
 
     // @dev Bỏ phiếu cho speaker
@@ -282,11 +229,13 @@ contract Voting is Initializable, AccessControlUpgradeable {
             !round.checkVotedSpeaker[speaker][msg.sender],
             "You have already voted for this speaker"
         );
+        if (userVotesForSpeaker[roundId][msg.sender] == 0) { // tương tự
+            round.votersForSpeaker.push(msg.sender);
+        }
 
         userVotesForSpeaker[roundId][msg.sender]++;
         round.speakerVotes[speaker]++;
         round.checkVotedSpeaker[speaker][msg.sender] = true;
-        round.votersForSpeaker.push(msg.sender);
         emit VotedSpeaker(roundId, speaker, msg.sender); // sự kiện votedspeaker ở trên
     }
 
@@ -431,5 +380,96 @@ contract Voting is Initializable, AccessControlUpgradeable {
         uint256 oldEndTime = round.endTime;
         round.endTime = newEndTime;
         emit VotingEndTimeChanged(roundId, oldEndTime, newEndTime);
+    }
+
+    /// @dev voter xóa voter cho 1 seminar
+    function removeVoteForSeminar(
+        uint256 roundId,
+        uint256 seminarId
+    )
+        public
+        onlyRole(VOTER_ROLE)
+    {
+        VotingRound storage round = votingRounds[roundId];
+        require(
+            round.checkVotedSeminar[seminarId][msg.sender],
+            "You have not voted for this seminar"
+        );
+        if (userVotesForSeminar[roundId][msg.sender] == 1) { // nếu chỉ có 1 phiếu thì pop
+            for (uint256 i = 0; i < round.votersForSeminar.length; i++) {
+                if (round.votersForSeminar[i] == msg.sender) {
+                    round.votersForSeminar[i] = round.votersForSeminar[round.votersForSeminar.length - 1];
+                    round.votersForSeminar.pop();
+                }
+            }
+        }
+        userVotesForSeminar[roundId][msg.sender]--;
+        totalVotes[roundId][seminarId]--;
+        round.checkVotedSeminar[seminarId][msg.sender] = false;
+
+    }
+
+    /// @dev voter xóa voter cho 1 speaker
+    function removeVoteForSpeaker(
+        uint256 roundId,
+        address speaker
+    )
+        public
+        onlyRole(VOTER_ROLE)
+    {
+        VotingRound storage round = votingRounds[roundId];
+        require(
+            round.checkVotedSpeaker[speaker][msg.sender],
+            "You have not voted for this speaker"
+        );
+        if (userVotesForSpeaker[roundId][msg.sender] == 1) { // nếu chỉ có 1 phiếu thì pop, hàm pop không gắn được msg sender
+            for (uint256 i = 0; i < round.votersForSpeaker.length; i++) {
+                if (round.votersForSpeaker[i] == msg.sender) {
+                    round.votersForSpeaker[i] = round.votersForSpeaker[round.votersForSpeaker.length - 1];
+                    round.votersForSpeaker.pop();
+                }
+            }
+        }
+        userVotesForSpeaker[roundId][msg.sender]--;
+        round.speakerVotes[speaker]--;
+        round.checkVotedSpeaker[speaker][msg.sender] = false;
+    }
+
+    /// @dev lấy danh sách voter chưa bỏ phiếu cho seminar
+    function getVotersDontVoteForSeminar(
+        uint256 roundId
+    ) public view returns (address[] memory) {
+        address[] memory list = whitelist.getVotersList();
+        uint256 count = 0;
+        for (uint i = 0; i < list.length; ++i) {
+            address voter = list[i];
+            if (userVotesForSeminar[roundId][voter] == 0) ++count;
+        }
+        address[] memory votersDontVote = new address[](count);
+        for (uint i = 0; i < list.length; ++i) {
+            address voter = list[i];
+            if (userVotesForSeminar[roundId][voter] == 0)
+                votersDontVote[--count] = voter;
+        }
+        return votersDontVote;
+    }
+   
+    /// @dev lấy danh sách voter chưa bỏ phiếu cho speaker
+    function getVotersDontVoteForSpeaker(
+        uint256 roundId
+    ) public view returns (address[] memory) {
+        address[] memory list = whitelist.getVotersList();
+        uint256 count = 0;
+        for (uint i = 0; i < list.length; ++i) {
+            address voter = list[i];
+            if (userVotesForSpeaker[roundId][voter] == 0) ++count;
+        }
+        address[] memory votersDontVote = new address[](count);
+        for (uint i = 0; i < list.length; ++i) {
+            address voter = list[i];
+            if (userVotesForSpeaker[roundId][voter] == 0)
+                votersDontVote[--count] = voter;
+        }
+        return votersDontVote;
     }
 }
