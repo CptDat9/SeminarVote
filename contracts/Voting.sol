@@ -47,9 +47,14 @@ contract Voting is Initializable, AccessControlUpgradeable {
         uint256 indexed roundId,
         uint256 indexed seminarId
     );
-    event Voted(
+    event VotedSeminar(
         uint256 indexed roundId,
         uint256 indexed seminarId,
+        address indexed voter
+    );
+    event VotedSpeaker(
+        uint256 indexed roundId,
+        address speaker,
         address indexed voter
     );
     event VotingRoundEnded(uint256 indexed roundId);
@@ -157,6 +162,7 @@ contract Voting is Initializable, AccessControlUpgradeable {
         }
     }
 
+
     // Hàm bỏ phiếu
     function voteForSeminar(
         uint256 roundId,
@@ -181,7 +187,7 @@ contract Voting is Initializable, AccessControlUpgradeable {
         totalVotes[roundId][seminarId]++;
         checkVotedSeminar[seminarId][msg.sender] = true;
         round.votersForSeminar.push(msg.sender);
-        emit Voted(roundId, seminarId, msg.sender);
+        emit VotedSeminar(roundId, seminarId, msg.sender);
     }
 
     // @dev Bỏ phiếu cho speaker
@@ -207,7 +213,7 @@ contract Voting is Initializable, AccessControlUpgradeable {
         round.speakerVotes[speaker]++;
         checkVotedSpeaker[speaker][msg.sender] = true;
         round.votersForSpeaker.push(msg.sender);
-        emit Voted(roundId, 0, msg.sender);
+        emit VotedSpeaker(roundId, speaker, msg.sender);
     }
 
     // Hàm kết thúc vòng bỏ phiếu
@@ -300,7 +306,7 @@ contract Voting is Initializable, AccessControlUpgradeable {
     }
     /// @dev Lấy danh sách speaker xếp từ vote cao xuống thấp
 
-    function getResultWinner (uint256 roundId) public 
+    function getResultSpeaker (uint256 roundId) public 
     view 
     onlyRole(ADMIN_ROLE) 
     returns (address[] memory sortedSpeakers, uint256[] memory sortedVotes)
@@ -330,6 +336,7 @@ contract Voting is Initializable, AccessControlUpgradeable {
         return (sortedSpeakers, sortedVotes);
 
     }
+    
     /// @dev change deadline
     function changeVotingEndtime(uint256 roundId, uint256 newEndTime) 
         public 
