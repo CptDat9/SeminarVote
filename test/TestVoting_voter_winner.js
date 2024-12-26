@@ -57,7 +57,7 @@ describe("Voter and winner in Voting", function () {
         
         const startTime = Math.floor(Date.now() / 1000);
         const endTime = startTime * 2;
-        await voting.connect(admin).createVotingRound(startTime, endTime, 3);
+        await voting.connect(admin).createVotingRound(startTime, endTime, 3, 3);
         
         await voting.connect(admin).addSeminarToRound(1, 1);
         await voting.connect(admin).addSeminarToRound(1, 2);
